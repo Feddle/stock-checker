@@ -8,21 +8,21 @@
 //All the complexity comes from avoiding unnecessary writes and fetches
 //Perhaps the handleOneStock should actually accepts and process two stocks(?)
 
-'use strict';
+"use strict";
 
-var expect = require('chai').expect;
-var MongoClient = require('mongodb');
-const axios = require('axios');
+var expect = require("chai").expect;
+var MongoClient = require("mongodb");
+const axios = require("axios");
 
 const CONNECTION_STRING = process.env.DB; //MongoClient.connect(CONNECTION_STRING, function(err, db) {});
 
 module.exports = function (app) {
 
-  app.route('/api/stock-prices')
+  app.route("/api/stock-prices")
     .get(function (req, res){  
       const like = req.query.like ? true : false;
       const s = Array.isArray(req.query.stock) ? req.query.stock : [req.query.stock];
-      let stocks = s.map(a => {return a.toUpperCase()});
+      let stocks = s.map(a => {return a.toUpperCase();});
       let cookies = req.cookies.stock ? req.cookies.stock : [];
     
       let callback = (error, stocksToReturn, stocksToSave, cookie) => {          
@@ -98,7 +98,7 @@ module.exports = function (app) {
           checkForUpdate(result[0]).then((updatedStock) => {              
             if(updatedStock) {              
               if(like && !cookies.includes(updatedStock.stock)) {
-                 ++updatedStock.likes;
+                ++updatedStock.likes;
                 let cookieArray = cookies.length > 0 ? cookies : [];
                 cookieArray.push(updatedStock.stock);
                 returnObj.cookie = {stockArray: cookieArray, options: { expires: new Date("2077"), httpOnly: true }};
@@ -138,7 +138,7 @@ module.exports = function (app) {
         client.db("glitch").collection("stock-checker").updateOne({stock: stock.stock}, {$set: stock.data},{upsert: true}, (err, result) => {
           let msg;
           if(err) msg = err;
-          msg = "Updated database entries"
+          msg = "Updated database entries";
           client.close();
           return msg;
         });
@@ -156,7 +156,7 @@ module.exports = function (app) {
     let result;
     let sinceUpdated = currentDate - new Date(stock.updated_on);
       
-     //Needs to be updated
+    //Needs to be updated
     if(sinceUpdated > oneDay) {      
       let newStock = await getStock(stock.stock);
       result = newStock;
