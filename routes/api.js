@@ -1,10 +1,4 @@
-/*
-*
-*
-*       Complete the API routing below
-*
-*
-*/
+
 //All the complexity comes from avoiding unnecessary writes and fetches
 //Perhaps the handleOneStock should actually accepts and process two stocks(?)
 
@@ -38,6 +32,16 @@ module.exports = function (app) {
         let stockData = [];
         let index = 0;
         let obj = [];
+
+        handleOneStock([stocks[0]], like, cookies, cb);
+        handleOneStock([stocks[1]], like, cookies, cb);
+
+        let cb = (error, stocksToReturn, stocksToSave, cookie) => {          
+          ++index;
+          let returnObj = {error, stocksToReturn, stocksToSave, cookie};
+          stockData.push(returnObj);
+          if(index == 2) sendRequest();
+        };  
         
         let sendRequest = () => {          
           let cookie1 = stockData[0].cookie ? stockData[0].cookie.stockArray : null;
@@ -54,17 +58,7 @@ module.exports = function (app) {
           obj[0].rel_likes = stockData[0].stocksToReturn.stockData.likes - stockData[1].stocksToReturn.stockData.likes;
           obj[1].rel_likes = stockData[1].stocksToReturn.stockData.likes - stockData[0].stocksToReturn.stockData.likes;
           res.send({stockData: obj});
-        };
-        
-        let cb = (error, stocksToReturn, stocksToSave, cookie) => {          
-          ++index;
-          let returnObj = {error, stocksToReturn, stocksToSave, cookie};
-          stockData.push(returnObj);
-          if(index == 2) sendRequest();
-        };        
-        handleOneStock([stocks[0]], like, cookies, cb);
-        handleOneStock([stocks[1]], like, cookies, cb);
-                
+        };                                              
       }
        
     });
@@ -96,7 +90,8 @@ module.exports = function (app) {
         }
         else if(result.length == 1) {            
           checkForUpdate(result[0]).then((updatedStock) => {              
-            if(updatedStock) {              
+            if(updatedStock) { 
+              //TODO: Rewrite             
               if(like && !cookies.includes(updatedStock.stock)) {
                 ++updatedStock.likes;
                 let cookieArray = cookies.length > 0 ? cookies : [];
@@ -113,7 +108,8 @@ module.exports = function (app) {
               });
               handleEnd(updatedStock);
             }
-            else {              
+            else {  
+              //TODO: Rewrite            
               if(like && !cookies.includes(result[0].stock)) {
                 result[0].likes = ++result[0].likes;
                 stocksToSave.push({stock: result[0].stock, data: {likes: result[0].likes}});
@@ -130,7 +126,7 @@ module.exports = function (app) {
   }
       
   
-  
+  //TODO: Make do with one connection -> Promise.all (?)
   //Saves the array of stocks ( [{stock: "name", data: {}}] ) to database
   async function saveToDb(stocksToSave) {      
     for(let stock of stocksToSave) {
