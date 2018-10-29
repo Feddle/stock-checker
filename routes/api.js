@@ -1,5 +1,6 @@
 
 //All the complexity comes from avoiding unnecessary writes and fetches
+//Stocks that are shown to the client are not the same as the stock objects that are written to database (more fields)
 //Perhaps the handleOneStock should actually accepts and process two stocks(?)
 
 "use strict";
@@ -33,15 +34,15 @@ module.exports = function (app) {
         let index = 0;
         let obj = [];
 
-        handleOneStock([stocks[0]], like, cookies, cb);
-        handleOneStock([stocks[1]], like, cookies, cb);
-
         let cb = (error, stocksToReturn, stocksToSave, cookie) => {          
           ++index;
           let returnObj = {error, stocksToReturn, stocksToSave, cookie};
           stockData.push(returnObj);
           if(index == 2) sendRequest();
         };  
+        
+        handleOneStock([stocks[0]], like, cookies, cb);
+        handleOneStock([stocks[1]], like, cookies, cb);        
         
         let sendRequest = () => {          
           let cookie1 = stockData[0].cookie ? stockData[0].cookie.stockArray : null;
@@ -64,7 +65,7 @@ module.exports = function (app) {
     });
       
   
-  
+  //Hanldes retrieving of one stock  
   function handleOneStock(stocks, like, cookies, callback) {   
     MongoClient.connect(CONNECTION_STRING, function(err, client) { 
       let stocksToSave = [];
@@ -90,13 +91,10 @@ module.exports = function (app) {
         }
         else if(result.length == 1) {            
           checkForUpdate(result[0]).then((updatedStock) => {              
-            if(updatedStock) { 
-              //TODO: Rewrite             
+            if(updatedStock) {                                           
               if(like && !cookies.includes(updatedStock.stock)) {
-                ++updatedStock.likes;
-                let cookieArray = cookies.length > 0 ? cookies : [];
-                cookieArray.push(updatedStock.stock);
-                returnObj.cookie = {stockArray: cookieArray, options: { expires: new Date("2077"), httpOnly: true }};
+                let {likedStock, stockToSave, cookie} = likeStock(result[0], cookies);                  
+                updatedStock.likes = likedStock.likes;
               } 
 
               stocksToSave.push({
@@ -106,27 +104,37 @@ module.exports = function (app) {
                   updated_on: updatedStock.updated_on, 
                   ...(like && {likes: updatedStock.likes})}  //Taken from stackoverflow/11704267 , if like flag is true add likes property with updated likes
               });
+              
               handleEnd(updatedStock);
             }
-            else {  
-              //TODO: Rewrite            
+            else {                       
               if(like && !cookies.includes(result[0].stock)) {
-                result[0].likes = ++result[0].likes;
-                stocksToSave.push({stock: result[0].stock, data: {likes: result[0].likes}});
-                let cookieArray = cookies.length > 0 ? cookies : [];
-                cookieArray.push(result[0].stock);
-                returnObj.cookie = {stockArray: cookieArray, options: { expires: new Date("2077"), httpOnly: true }};
+                let {likedStock, stockToSave, cookie} = likeStock(result[0], cookies);
+                stocksToSave.push(stockToSave);
+                handleEnd(likedStock);
               }
-              handleEnd(result[0]);
+              else handleEnd(result[0]);
             }            
           });                           
         }                              
       });
     });
   }
+  
+  //Takes a stock and cookies and returns liked stock, stock object to save and cookie to set
+  function likeStock(stock, cookies) {
+    let stockCopy = Object.assign({}, stock);
+    ++stockCopy.likes;    
+    let cookieArray = cookies.length > 0 ? cookies : [];
+    cookieArray.push(stockCopy.stock);
+    let cookie = {stockArray: cookieArray, options: { expires: new Date("2077"), httpOnly: true }};
+        
+    return {likedStock: stockCopy, stockToSave: {stock: stockCopy.stock, data: {likes: stockCopy.likes}}, cookie};
+  }
       
   
   //TODO: Make do with one connection -> Promise.all (?)
+  //TODO: Error handling
   //Saves the array of stocks ( [{stock: "name", data: {}}] ) to database
   async function saveToDb(stocksToSave) {      
     for(let stock of stocksToSave) {
